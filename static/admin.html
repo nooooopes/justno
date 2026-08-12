@@ -1,0 +1,93 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Admin — Key & Script Manager</title>
+  <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+  <style>
+    body{font-family:system-ui,Segoe UI,Roboto,Arial;margin:24px}
+    textarea{width:100%;height:120px}
+    input[type=text]{width:100%}
+    .hidden{display:none}
+  </style>
+</head>
+<body>
+  <h1>Admin — Key & Script Manager</h1>
+  <div id="auth">
+    <button id="login">Sign in</button>
+    <button id="logout" class="hidden">Sign out</button>
+    <span id="user" style="margin-left:12px"></span>
+  </div>
+
+  <h2>Create key (SQL)</h2>
+  <p>Use Supabase SQL editor or API to create keys. Example SQL:</p>
+  <pre>insert into keys (key_text, owner, allowed) values ('TESTKEY123','you', array['script1']);</pre>
+
+  <h2>Upload script (admin only)</h2>
+  <p>Paste Lua script below and click Upload. This calls the admin_upload function — you must set <strong>ADMIN_SECRET</strong> in Netlify env vars. For security, do not expose ADMIN_SECRET in the browser; this UI will prompt you to paste it once per session (manual step).</p>
+
+  <label>Script ID (e.g., script1)</label>
+  <input id="scriptId" type="text" placeholder="script1" />
+  <label>ADMIN_SECRET (paste here; not stored)</label>
+  <input id="adminSecret" type="text" placeholder="paste ADMIN_SECRET here" />
+  <label>Script content</label>
+  <textarea id="scriptContent">print("hello from script1")</textarea>
+  <button id="uploadBtn">Upload script</button>
+
+  <pre id="result"></pre>
+
+<script>
+  const identity = netlifyIdentity
+  const loginBtn = document.getElementById('login')
+  const logoutBtn = document.getElementById('logout')
+  const userSpan = document.getElementById('user')
+  const uploadBtn = document.getElementById('uploadBtn')
+  const result = document.getElementById('result')
+
+  function updateUI() {
+    const user = identity.currentUser()
+    if (user) {
+      loginBtn.classList.add('hidden')
+      logoutBtn.classList.remove('hidden')
+      userSpan.textContent = user.email
+    } else {
+      loginBtn.classList.remove('hidden')
+      logoutBtn.classList.add('hidden')
+      userSpan.textContent = ''
+    }
+  }
+
+  identity.on('init', updateUI)
+  identity.on('login', updateUI)
+  identity.on('logout', updateUI)
+
+  loginBtn.onclick = () => identity.open()
+  logoutBtn.onclick = () => identity.logout()
+
+  uploadBtn.onclick = async () => {
+    const id = document.getElementById('scriptId').value.trim()
+    const script = document.getElementById('scriptContent').value
+    const adminSecret = document.getElementById('adminSecret').value.trim()
+    if (!id || !script || !adminSecret) { result.textContent = 'Missing fields'; return }
+    result.textContent = 'Uploading...'
+    try {
+      const res = await fetch('/.netlify/functions/admin_upload', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-secret': adminSecret
+        },
+        body: JSON.stringify({ id, script })
+      })
+      const j = await res.json()
+      result.textContent = JSON.stringify(j, null, 2)
+    } catch (e) {
+      result.textContent = String(e)
+    }
+  }
+
+  // init
+  identity.init()
+</script>
+</body>
+</html>
