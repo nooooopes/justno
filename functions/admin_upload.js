@@ -1,5 +1,6 @@
 const { createClient } = require('@supabase/supabase-js')
 const CryptoJS = require('crypto-js')
+const jwt = require('jsonwebtoken')
 
 const SUPABASE_URL = process.env.SUPABASE_URL
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY
@@ -16,8 +17,11 @@ function encryptBase64AES(plain) {
 
 exports.handler = async function(event) {
   try {
-    const secret = (event.headers && (event.headers['x-admin-secret'])) || ''
-    if (secret !== ADMIN_SECRET) return { statusCode:403, body: JSON.stringify({ ok:false, reason:'forbidden' }) }
+    const auth = (event.headers && (event.headers.authorization || event.headers.Authorization)) || ''
+    if (!auth.startsWith('Bearer ')) return { statusCode:401, body: JSON.stringify({ ok:false, reason:'missing token' }) }
+    const token = auth.slice(7)
+    try { jwt.verify(token, ADMIN_SECRET) } catch(e) { return { statusCode:403, body: JSON.stringify({ ok:false, reason:'invalid admin token' }) } }
+
     const body = JSON.parse(event.body || '{}')
     const id = body.id
     const script = body.script
