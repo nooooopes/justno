@@ -1,5 +1,5 @@
 local HttpService = game:GetService("HttpService")
-local baseUrl = "https://YOUR_NETLIFY_SITE.net/.netlify/functions"
+local baseUrl = "https://loadere.netlify.app//.netlify/functions"
 local licenseKey = "test"
 
 local function post_json(url, tbl)
